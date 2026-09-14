@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // Chỉ cho phép POST
   if (req.method !== 'POST') {
     return res.status(405).json({
       success: false,
@@ -8,14 +7,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    // URL Web App Google Apps Script
     const GOOGLE_SCRIPT_URL =
-      'https://script.google.com/macros/s/AKfycbyDO9tJjSvFIvygltTsdR4rbHd1RT_2MNjYTt93ybKxANUAQ0M6zL64AUTCbFkpNzGySA/exec'
+  'https://script.google.com/macros/s/AKfycbwUPTVnxxTuBJkRpPKrAVnmPArqvE3X7Fw8WW_rkCX2a6CqLxlNGOctQXmVGWnyZr1tyA/exec'
 
-    // Lấy dữ liệu từ React
     const data = req.body
 
-    // Gửi tiếp sang Google Apps Script
+    // Gửi POST sang Google Apps Script
     const response = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
       headers: {
@@ -24,33 +21,40 @@ export default async function handler(req, res) {
       body: new URLSearchParams({
         payload: JSON.stringify(data),
       }).toString(),
+      redirect: 'follow',
     })
 
     const text = await response.text()
+
+    console.log('Google response:', response.status, text)
 
     let result
 
     try {
       result = JSON.parse(text)
     } catch {
-      result = {
+      return res.status(502).json({
         success: false,
-        message: 'Google Apps Script trả về dữ liệu không hợp lệ',
+        message: 'Google Apps Script không trả JSON',
         raw: text,
-      }
+      })
     }
 
-    if (!response.ok) {
-      return res.status(response.status).json(result)
+    if (!result.success) {
+      return res.status(502).json({
+        success: false,
+        message: result.message || 'Google Apps Script báo lỗi',
+      })
     }
 
     return res.status(200).json(result)
+
   } catch (error) {
-    console.error('API proxy error:', error)
+    console.error('Sync error:', error)
 
     return res.status(500).json({
       success: false,
-      message: error.message || 'Không thể kết nối Google Apps Script',
+      message: error.message || 'Lỗi kết nối Google Apps Script',
     })
   }
 }
